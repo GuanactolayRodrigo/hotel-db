@@ -1,0 +1,341 @@
+-- ============================================================
+-- BASE DE DATOS - SISTEMA DE RESERVAS HOTELERAS
+-- MySQL 8.x / InnoDB
+-- ============================================================
+
+-- ------------------------------------------------------------
+-- 0. CREAR BASE DE DATOS
+-- ------------------------------------------------------------
+
+CREATE DATABASE IF NOT EXISTS hotel_db
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci;
+
+USE hotel_db;
+
+
+-- ============================================================
+-- 1. PROVINCIA
+-- ============================================================
+
+CREATE TABLE provincia (
+    id_provincia INT UNSIGNED AUTO_INCREMENT,
+    nombre VARCHAR(100) NOT NULL,
+
+    PRIMARY KEY (id_provincia),
+
+    CONSTRAINT uq_provincia_nombre
+        UNIQUE (nombre)
+) ENGINE=InnoDB;
+
+
+-- ============================================================
+-- 2. LOCALIDAD
+-- ============================================================
+
+CREATE TABLE localidad (
+    id_localidad INT UNSIGNED AUTO_INCREMENT,
+    id_provincia INT UNSIGNED NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+
+    PRIMARY KEY (id_localidad),
+
+    CONSTRAINT uq_localidad_provincia
+        UNIQUE (id_provincia, nombre),
+
+    CONSTRAINT fk_localidad_provincia
+        FOREIGN KEY (id_provincia)
+        REFERENCES provincia(id_provincia)
+) ENGINE=InnoDB;
+
+
+-- ============================================================
+-- 3. HOTEL
+-- ============================================================
+
+CREATE TABLE hotel (
+    id_hotel INT UNSIGNED AUTO_INCREMENT,
+    id_localidad INT UNSIGNED NOT NULL,
+    nombre VARCHAR(150) NOT NULL,
+    descripcion TEXT,
+    direccion VARCHAR(200) NOT NULL,
+    codigo_postal VARCHAR(10),
+
+    PRIMARY KEY (id_hotel),
+
+    CONSTRAINT fk_hotel_localidad
+        FOREIGN KEY (id_localidad)
+        REFERENCES localidad(id_localidad)
+) ENGINE=InnoDB;
+
+
+-- ============================================================
+-- 4. CONTACTO_HOTEL
+-- ============================================================
+
+CREATE TABLE contacto_hotel (
+    id_contacto INT UNSIGNED AUTO_INCREMENT,
+    id_hotel INT UNSIGNED NOT NULL,
+    tipo VARCHAR(20) NOT NULL,
+    valor VARCHAR(150) NOT NULL,
+
+    PRIMARY KEY (id_contacto),
+
+    CONSTRAINT fk_contacto_hotel
+        FOREIGN KEY (id_hotel)
+        REFERENCES hotel(id_hotel)
+) ENGINE=InnoDB;
+
+
+-- ============================================================
+-- 5. TIPO_HABITACION
+-- ============================================================
+
+CREATE TABLE tipo_habitacion (
+    id_tipo_habitacion INT UNSIGNED AUTO_INCREMENT,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    capacidad SMALLINT UNSIGNED NOT NULL,
+
+    PRIMARY KEY (id_tipo_habitacion),
+
+    CONSTRAINT uq_tipo_habitacion_nombre
+        UNIQUE (nombre),
+
+    CONSTRAINT chk_tipo_capacidad
+        CHECK (capacidad > 0)
+) ENGINE=InnoDB;
+
+
+-- ============================================================
+-- 6. HABITACION
+-- ============================================================
+
+CREATE TABLE habitacion (
+    id_habitacion INT UNSIGNED AUTO_INCREMENT,
+    id_hotel INT UNSIGNED NOT NULL,
+    id_tipo_habitacion INT UNSIGNED NOT NULL,
+    numero VARCHAR(20) NOT NULL,
+    piso SMALLINT,
+    estado VARCHAR(20) NOT NULL,
+
+    PRIMARY KEY (id_habitacion),
+
+    CONSTRAINT uq_habitacion_hotel_numero
+        UNIQUE (id_hotel, numero),
+
+    CONSTRAINT fk_habitacion_hotel
+        FOREIGN KEY (id_hotel)
+        REFERENCES hotel(id_hotel),
+
+    CONSTRAINT fk_habitacion_tipo
+        FOREIGN KEY (id_tipo_habitacion)
+        REFERENCES tipo_habitacion(id_tipo_habitacion)
+) ENGINE=InnoDB;
+
+
+-- ============================================================
+-- 7. COMODIDAD
+-- ============================================================
+
+CREATE TABLE comodidad (
+    id_comodidad INT UNSIGNED AUTO_INCREMENT,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+
+    PRIMARY KEY (id_comodidad),
+
+    CONSTRAINT uq_comodidad_nombre
+        UNIQUE (nombre)
+) ENGINE=InnoDB;
+
+
+-- ============================================================
+-- 8. TIPO_HABITACION_COMODIDAD
+-- Relación N:M entre tipo_habitacion y comodidad
+-- ============================================================
+
+CREATE TABLE tipo_habitacion_comodidad (
+    id_tipo_habitacion INT UNSIGNED NOT NULL,
+    id_comodidad INT UNSIGNED NOT NULL,
+
+    PRIMARY KEY (
+        id_tipo_habitacion,
+        id_comodidad
+    ),
+
+    CONSTRAINT fk_thc_tipo
+        FOREIGN KEY (id_tipo_habitacion)
+        REFERENCES tipo_habitacion(id_tipo_habitacion),
+
+    CONSTRAINT fk_thc_comodidad
+        FOREIGN KEY (id_comodidad)
+        REFERENCES comodidad(id_comodidad)
+) ENGINE=InnoDB;
+
+
+-- ============================================================
+-- 9. HUESPED
+-- ============================================================
+
+CREATE TABLE huesped (
+    id_huesped INT UNSIGNED AUTO_INCREMENT,
+    id_localidad INT UNSIGNED NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    apellido VARCHAR(100) NOT NULL,
+    documento VARCHAR(20) NOT NULL,
+    fecha_nacimiento DATE,
+    direccion VARCHAR(200) NOT NULL,
+    codigo_postal VARCHAR(10),
+
+    PRIMARY KEY (id_huesped),
+
+    CONSTRAINT uq_huesped_documento
+        UNIQUE (documento),
+
+    CONSTRAINT fk_huesped_localidad
+        FOREIGN KEY (id_localidad)
+        REFERENCES localidad(id_localidad)
+) ENGINE=InnoDB;
+
+
+-- ============================================================
+-- 10. CONTACTO_HUESPED
+-- ============================================================
+
+CREATE TABLE contacto_huesped (
+    id_contacto INT UNSIGNED AUTO_INCREMENT,
+    id_huesped INT UNSIGNED NOT NULL,
+    tipo VARCHAR(20) NOT NULL,
+    valor VARCHAR(150) NOT NULL,
+
+    PRIMARY KEY (id_contacto),
+
+    CONSTRAINT fk_contacto_huesped
+        FOREIGN KEY (id_huesped)
+        REFERENCES huesped(id_huesped)
+) ENGINE=InnoDB;
+
+
+-- ============================================================
+-- 11. RESERVA
+-- ============================================================
+
+CREATE TABLE reserva (
+    id_reserva BIGINT UNSIGNED AUTO_INCREMENT,
+    id_huesped INT UNSIGNED NOT NULL,
+    id_habitacion INT UNSIGNED NOT NULL,
+
+    fecha_reserva DATETIME NOT NULL,
+    fecha_inicio DATE NOT NULL,
+    fecha_salida DATE NOT NULL,
+
+    estado VARCHAR(20) NOT NULL,
+    tarifa DECIMAL(12,2),
+
+    PRIMARY KEY (id_reserva),
+
+    CONSTRAINT fk_reserva_huesped
+        FOREIGN KEY (id_huesped)
+        REFERENCES huesped(id_huesped),
+
+    CONSTRAINT fk_reserva_habitacion
+        FOREIGN KEY (id_habitacion)
+        REFERENCES habitacion(id_habitacion),
+
+    CONSTRAINT chk_reserva_fechas
+        CHECK (fecha_salida > fecha_inicio),
+
+    CONSTRAINT chk_reserva_tarifa
+        CHECK (tarifa IS NULL OR tarifa >= 0)
+) ENGINE=InnoDB;
+
+
+-- ============================================================
+-- 12. PUNTO_INTERES
+-- ============================================================
+
+CREATE TABLE punto_interes (
+    id_punto_interes INT UNSIGNED AUTO_INCREMENT,
+    nombre VARCHAR(150) NOT NULL,
+    tipo VARCHAR(50),
+    descripcion TEXT,
+    latitud DECIMAL(9,6),
+    longitud DECIMAL(9,6),
+
+    PRIMARY KEY (id_punto_interes)
+) ENGINE=InnoDB;
+
+
+-- ============================================================
+-- 13. HOTEL_PUNTO_INTERES
+-- Relación N:M entre hotel y punto_interes
+-- ============================================================
+
+CREATE TABLE hotel_punto_interes (
+    id_hotel INT UNSIGNED NOT NULL,
+    id_punto_interes INT UNSIGNED NOT NULL,
+    distancia_km DECIMAL(8,2) NOT NULL,
+
+    PRIMARY KEY (
+        id_hotel,
+        id_punto_interes
+    ),
+
+    CONSTRAINT fk_hpi_hotel
+        FOREIGN KEY (id_hotel)
+        REFERENCES hotel(id_hotel),
+
+    CONSTRAINT fk_hpi_punto
+        FOREIGN KEY (id_punto_interes)
+        REFERENCES punto_interes(id_punto_interes),
+
+    CONSTRAINT chk_hpi_distancia
+        CHECK (distancia_km >= 0)
+) ENGINE=InnoDB;
+
+
+-- ============================================================
+-- ÍNDICES ADICIONALES - PUNTO 3
+-- ============================================================
+
+-- Búsquedas de reservas por fecha/rango de fechas
+CREATE INDEX idx_reserva_fecha_inicio
+ON reserva (fecha_inicio);
+
+
+-- Disponibilidad y superposición de reservas por habitación
+CREATE INDEX idx_reserva_habitacion_estado_fechas
+ON reserva (
+    id_habitacion,
+    estado,
+    fecha_inicio,
+    fecha_salida
+);
+
+
+-- Historial de reservas de un huésped
+CREATE INDEX idx_reserva_huesped_fecha
+ON reserva (
+    id_huesped,
+    fecha_reserva
+);
+
+
+-- Puntos de interés próximos a determinado hotel
+CREATE INDEX idx_hpi_hotel_distancia
+ON hotel_punto_interes (
+    id_hotel,
+    distancia_km
+);
+
+
+-- ============================================================
+-- VERIFICACIONES
+-- ============================================================
+
+SHOW TABLES;
+
+SELECT COUNT(*) AS cantidad_tablas
+FROM information_schema.tables
+WHERE table_schema = 'hotel_db';
